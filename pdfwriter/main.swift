@@ -8,7 +8,6 @@
 import AppKit
 import Darwin
 
-var outDir = "/var/spool/pdfwriter/"
 var nobodyName = "anonymous users"
 var folderIcon = NSImage(byReferencingFile: "/Library/Printers/RWTS/PDFwriter/PDFfolder.png")
 
@@ -52,37 +51,27 @@ if let p = getpwnam(user)?.pointee {
     user = nobodyName
 }
 
-outDir += user
+// Get the input file path and extract directory
+let inputPath = CommandLine.arguments[3]
+let inputURL = URL(fileURLWithPath: inputPath)
+let outDir = inputURL.deletingLastPathComponent().path
 
 let group = getgrnam("_lp").pointee
 setgid(group.gr_gid)
-var isDir: ObjCBool = true
 
-if !FileManager.default.fileExists(atPath: outDir, isDirectory: &isDir) {
-    // create output Directory, setting icon, ownership and permissions.
-    umask(0o022)
-    do {
-        try FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
-    }
-    catch {
-        fputs("ERROR: Unable to create output directory at \(outDir)\n", stderr)
-        exit(CUPS_BACKEND_CANCEL)
-    }
-    NSWorkspace.shared.setIcon(folderIcon, forFile: outDir, options: .excludeQuickDrawElementsIconCreationOption)
-    let mode = user == nobodyName ? mode_t(0o777) : mode_t(0o700)
-    chmod(outDir, mode)
-    chown(outDir, passwd.pw_uid, passwd.pw_gid)
+var fileName = (inputPath as NSString).lastPathComponent
+if fileName == "(stdin)" {
+    fileName = "Untitled"
+} else {
+    fileName = (fileName as NSString).deletingPathExtension
 }
 
-var fileName = (CommandLine.arguments[3].replacingOccurrences(of:"/", with: ":") as NSString).deletingPathExtension
-if fileName == "(stdin)" {fileName = "Untitled" }           //   cat /path/to/file | lpr -P PDFwriter    without -J or -T option.
-
 // make sure we have a unique filename
-var outFile = outDir + "/" + fileName + ".pdf"
+var outFile = outDir + "/" + fileName + "_" + ".pdf"
 var fileIndex = 0
 while ( FileManager.default.fileExists( atPath: outFile )) {
     fileIndex += 1
-    outFile = outDir + "/" + fileName + "-\(fileIndex).pdf"
+    outFile = outDir + "/" + fileName + "_" + "\(fileIndex).pdf"
 }
 
 umask(0o077)
