@@ -4,3 +4,4 @@ DeveloperID
 *.xcuserdatad
 /~/tmp/
 build/build.log
+build/
